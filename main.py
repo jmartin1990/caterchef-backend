@@ -7,7 +7,7 @@ from typing import List, Optional
 from datetime import date, datetime, timedelta, timezone 
 from database import Base, get_db
 
-# --- LIBRERÍAS DE AUTENTICACIÓN Y SEGURIDAD ---
+# --- LIBRERÍAS DE AUTENTICACIÓN Y SEGURIDAD (TFG: Cifrado y Control de Sesiones) ---
 from passlib.context import CryptContext
 import jwt
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
@@ -24,7 +24,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # --- MIDDLEWARE OAUTH2: Desactivamos el auto_error para dar soporte legítimo a Invitados ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
-# --- Esquemas de validación (Pydantic / DTOs) ---
+# =========================================================================
+# --- Esquemas de validación (Pydantic / DTOs - Data Transfer Objects) ---
+# =========================================================================
+
 class ListaEsperaCreate(BaseModel):
     plato_id: int
     email_usuario: str
@@ -45,7 +48,7 @@ class UsuarioCreate(BaseModel):
     telefono: str 
     acepta_privacidad: bool # --- Validación obligatoria de conformidad RGPD ---
 
-# --- NUEVO: ESQUEMAS PARA LA EXTRANET DE CLIENTE (TFG: Modificación de Datos) ---
+# --- EXTRANET DE CLIENTE: Modificación de Datos Perfil ---
 class PerfilUpdate(BaseModel):
     nombre: str
     apellidos: Optional[str] = None
@@ -55,7 +58,12 @@ class PasswordUpdate(BaseModel):
     password_actual: str
     password_nueva: str
 
-# --- DTO PARA AUDITORÍA DE CREDENCIALES (TFG: Opción 5 - Flujo de Seguridad) ---
+# --- NUEVO: GESTIÓN OPERATIVA EN PANEL DE ADMINISTRACIÓN (TFG: Fase 2) ---
+class EstadoPedidoUpdate(BaseModel):
+    """DTO para validar el payload de mutación de estado enviado desde el Dashboard de Next.js"""
+    estado: str
+
+# --- AUDITORÍA DE CREDENCIALES ---
 class RecuperarPasswordRequest(BaseModel):
     email: str
 
@@ -63,7 +71,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-# --- ESQUEMAS PARA PROCESAR EL CHECKOUT REAL (TFG: Opción 3 - Estructuras de Datos Compuestas) ---
+# --- CHECKOUT REAL: Estructuras de Datos Compuestas ---
 class ItemCarritoCreate(BaseModel):
     plato_id: int
     cantidad: int
@@ -80,8 +88,9 @@ class PedidoCreate(BaseModel):
     distrito: str 
     telefono: str 
     codigo_postal: str
-    notas_cliente: Optional[str] = None # Corregido para coincidir con la DB y Next.js
+    notes_cliente: Optional[str] = None 
 
+# --- CONFIGURACIÓN MIDDLEWARE CORS (Permite comunicación desacoplada con Next.js en desarrollo) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -90,7 +99,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Modelos de Base de Datos (ORM - SQLAlchemy) ---
+# =========================================================================
+# --- Modelos de Base de Datos (ORM - SQLAlchemy acoplados a Neon DB) ---
+# =========================================================================
+
 class PlatoORM(Base):
     __tablename__ = "platos"
     id = Column(Integer, primary_key=True, index=True)
@@ -132,7 +144,7 @@ class UsuarioORM(Base):
     acepta_privacidad = Column(Boolean, default=False) 
     creado_en = Column(TIMESTAMP, server_default=func.now())
 
-# --- MODELOS ORM ACOPLADOS A NEON DB (TFG: Relaciones de Entidad e Integridad Referencial) ---
+# --- RELACIONES DE ENTIDAD E INTEGRIDAD REFERENCIAL (TFG: Relaciones Compuestas) ---
 class PedidoORM(Base):
     __tablename__ = "pedidos"
     id = Column(Integer, primary_key=True, index=True)
@@ -158,7 +170,10 @@ class DetallePedidoORM(Base):
     cantidad = Column(Integer, nullable=False)
     precio_unitario = Column(Numeric(10, 2), nullable=False)
 
+# =========================================================================
 # --- MÉTODOS DE SERVICIO AUXILIARES (SEGURIDAD Y CIFRADO) ---
+# =========================================================================
+
 def obtener_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -171,7 +186,7 @@ def crear_token_acceso(data: dict) -> str:
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# --- MIDDLEWARE INYECTOR DE DEPENDENCIA ADAPTADO A FLUJO DE INVITADOS ---
+# --- MIDDLEWARE INYECTOR DE DEPENDENCIA (Verificación de Token JWT) ---
 def obtener_usuario_actual(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     """Si no se suministra un token de cabecera, retorna None permitiendo el paso de Invitados. Si expira o es corrupto lanza 401."""
     if not token:
@@ -195,7 +210,9 @@ def obtener_usuario_actual(token: Optional[str] = Depends(oauth2_scheme), db: Se
         raise excepcion_credenciales
     return usuario
 
-# --- Rutas (Endpoints) ---
+# =========================================================================
+# --- CONTROLADORES / RUTAS DE LA API (Endpoints RESTful) ---
+# =========================================================================
 
 @app.get("/")
 def estado_servidor():
@@ -262,10 +279,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     access_token = crear_token_acceso(data={"sub": usuario.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- ACTUALIZADO: ENDPOINT DE PERFIL E INYECCIÓN DE DATOS PARA FORMULARIOS (Extranet) ---
 @app.get("/api/me")
 def obtener_perfil_actual(db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
-    """Retorna los datos del usuario. Se añaden 'email' y 'telefono' para rellenar automáticamente la vista de Mi Cuenta."""
+    """Retorna los datos del usuario autenticado para la inyección dinámica en formularios."""
     if not usuario_actual:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -277,16 +293,15 @@ def obtener_perfil_actual(db: Session = Depends(get_db), usuario_actual: Usuario
     return {
         "nombre": usuario_actual.nombre,
         "apellidos": usuario_actual.apellidos,
-        "email": usuario_actual.email,       # Añadido para el panel "Mi Cuenta"
-        "telefono": usuario_actual.telefono, # Añadido para el panel "Mi Cuenta"
+        "email": usuario_actual.email,       
+        "telefono": usuario_actual.telefono, 
         "rol": usuario_actual.rol,
         "es_primera_compra": total_pedidos == 0 
     }
 
-# --- NUEVAS RUTAS: EXTRANET DEL CLIENTE (TFG: Panel de Auto-Gestión y Seguridad) ---
+# --- EXTRANET DEL CLIENTE: Auto-Gestión e Históricos ---
 @app.get("/api/reservas/me")
 def obtener_mis_reservas(db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
-    """Busca las solicitudes de Chef Privado aislando los datos por el email del usuario activo."""
     if not usuario_actual:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere sesión activa.")
     
@@ -294,7 +309,6 @@ def obtener_mis_reservas(db: Session = Depends(get_db), usuario_actual: UsuarioO
 
 @app.put("/api/me")
 def actualizar_perfil(perfil: PerfilUpdate, db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
-    """Actualiza la información básica del usuario (nombre, apellidos, teléfono)."""
     if not usuario_actual:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere sesión activa.")
     
@@ -306,7 +320,6 @@ def actualizar_perfil(perfil: PerfilUpdate, db: Session = Depends(get_db), usuar
 
 @app.put("/api/me/password")
 def actualizar_password(datos: PasswordUpdate, db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
-    """Valida la contraseña vigente y re-encripta la nueva contraseña en Neon DB."""
     if not usuario_actual:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere sesión activa.")
     
@@ -319,7 +332,6 @@ def actualizar_password(datos: PasswordUpdate, db: Session = Depends(get_db), us
 
 @app.post("/api/recuperar-password")
 def recuperar_password(solicitud: RecuperarPasswordRequest, db: Session = Depends(get_db)):
-    """Flujo seguro de recuperación: Valida la existencia en Neon DB y emula el despacho TLS/SMTP por consola."""
     usuario = db.query(UsuarioORM).filter(UsuarioORM.email == solicitud.email).first()
     
     if not usuario:
@@ -337,7 +349,7 @@ def recuperar_password(solicitud: RecuperarPasswordRequest, db: Session = Depend
     
     return {"mensaje": "Instrucciones de recuperación despachadas."}
 
-# --- ENDPOINTS TRANSACCIONALES Y PROTEGIDOS (TFG: Lógica de Compra y Roles Administrativos) ---
+# --- TRANSACCIONES COMPUESTAS Y ROLES ADMINISTRATIVOS (RBAC) ---
 @app.post("/api/pedidos")
 def crear_pedido(pedido: PedidoCreate, db: Session = Depends(get_db), usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)):
     """Transacción relacional atómica en dos pasos: Registra cabecera (mapeando si es usuario o invitado) e inserta detalles."""
@@ -355,7 +367,7 @@ def crear_pedido(pedido: PedidoCreate, db: Session = Depends(get_db), usuario_ac
             provincia=pedido.provincia,
             distrito=pedido.distrito,   
             telefono=pedido.telefono,   
-            notas_cliente=pedido.notas_cliente
+            notas_cliente=pedido.notes_cliente
         )
         db.add(nuevo_pedido)
         db.flush() 
@@ -370,14 +382,13 @@ def crear_pedido(pedido: PedidoCreate, db: Session = Depends(get_db), usuario_ac
             db.add(detalle)
         
         db.commit() 
-        return {"mensaje": "Pedido procesado correctamente", "pedido_id": nuevo_pedido.id}
+        return {"mensaje": "Pedido processed correctamente", "pedido_id": nuevo_pedido.id}
     except Exception as e:
         db.rollback() 
         raise HTTPException(status_code=400, detail=f"No se pudo completar el pedido: {str(e)}")
 
 @app.get("/api/pedidos/me")
 def obtener_mis_pedidos(db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
-    """Retorna únicamente los tickets asociados al ID del cliente autenticado mediante su JWT."""
     if not usuario_actual:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -387,10 +398,46 @@ def obtener_mis_pedidos(db: Session = Depends(get_db), usuario_actual: UsuarioOR
 
 @app.get("/api/admin/pedidos")
 def obtener_todos_los_pedidos(db: Session = Depends(get_db), usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)):
-    """Control de acceso basado en roles (RBAC). Restringe accesos anónimos o clientes sin rol de administración."""
     if not usuario_actual or usuario_actual.rol != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
             detail="Acceso restringido. Se requieren privilegios de administración."
         )
     return db.query(PedidoORM).order_by(PedidoORM.creado_en.desc()).all()
+
+# --- NUEVO ENDPOINT: GESTIÓN OPERATIVA DE CICLO DE VIDA (TFG: Fase 2 - Mutación RBAC) ---
+@app.put("/api/admin/pedidos/{pedido_id}/estado")
+def actualizar_estado_pedido(
+    pedido_id: int, 
+    datos: EstadoPedidoUpdate, 
+    db: Session = Depends(get_db), 
+    usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)
+):
+    """
+    Controlador dirigido para la actualización del estado de un ticket de servicio.
+    Aplica seguridad RBAC estricta validando que el rol asociado al JWT sea de administrador.
+    """
+    # 1. Seguridad perimetral: Middleware de control de roles
+    if not usuario_actual or usuario_actual.rol != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Acceso denegado. Se requieren privilegios de administración."
+        )
+    
+    # 2. Búsqueda por clave primaria indexada en Neon DB
+    pedido = db.query(PedidoORM).filter(PedidoORM.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(
+            status_code=404, 
+            detail="Pedido no encontrado en los registros históricos."
+        )
+    
+    # 3. Transacción atómica: Actualización del estado operativo
+    pedido.estado = datos.estado
+    db.commit()
+    
+    return {
+        "mensaje": "Estado del pedido actualizado con éxito en Neon DB", 
+        "pedido_id": pedido_id,
+        "nuevo_estado": pedido.estado
+    }
