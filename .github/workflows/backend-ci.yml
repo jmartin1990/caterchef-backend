@@ -21,5 +21,4 @@ jobs:
           DATABASE_URL: sqlite:///:memory:
           SECRET_KEY: clave_test_tfg_2026
           ALGORITHM: HS256
-        run: |
-          python -m pytest -v
+        run: python -m pytest -v
