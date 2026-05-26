@@ -8,6 +8,12 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app
 
+# --- CONFIGURACIÓN MÁGICA PARA GITHUB ACTIONS Y SQLITE EN MEMORIA ---
+from database import Base, engine 
+# Esto le dice a SQLAlchemy: "Crea todas las tablas (como la de usuarios) en la RAM ahora mismo"
+Base.metadata.create_all(bind=engine)
+# ====================================================================
+
 # Inicializamos el cliente de pruebas sobre la instancia nativa de la API
 client = TestClient(app)
 
