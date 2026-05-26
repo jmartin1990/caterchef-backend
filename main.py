@@ -1,13 +1,22 @@
+# main.py
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import Column, Integer, String, Numeric, Boolean, TIMESTAMP, func, Date, ForeignKey, Text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date, datetime, timedelta, timezone 
-from database import Base, get_db
+from database import get_db
 
-# --- LIBRERÍAS DE AUTENTICACIÓN Y SEGURIDAD (TFG: Cifrado y Control de Sesiones) ---
+# --- NUEVO: IMPORTACIÓN ATÓMICA DE MODELOS DESACOPLADOS (TFG: Patrón de Diseño Arquitectónico) ---
+from models import (
+    PlatoORM, ListaEsperaORM, ReservaORM, UsuarioORM, 
+    PedidoORM, DetallePedidoORM, MensajeContactoORM
+)
+
+# --- IMPORTACIÓN MAESTRA DE ESQUEMAS MODULARES (TFG: Separación de Responsabilidades) ---
+import schemas
+
+# --- LIBRERÍAS DE AUTENTICACIÓN Y SEGURIDAD ---
 from passlib.context import CryptContext
 import jwt
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
@@ -21,154 +30,25 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# --- MIDDLEWARE OAUTH2: Desactivamos el auto_error para dar soporte legítimo a Invitados ---
+# --- MIDDLEWARE OAUTH2 ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
-# =========================================================================
-# --- Esquemas de validación (Pydantic / DTOs - Data Transfer Objects) ---
-# =========================================================================
 
-class ListaEsperaCreate(BaseModel):
-    plato_id: int
-    email_usuario: str
+# --- CONFIGURACIÓN DE CORS PARA EL TFG (Seguridad de Orígenes Cruzados) ---
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.1.72:3000",  # IP de tu red local detectada por Next.js
+]
 
-class ReservaCreate(BaseModel):
-    nombre: str
-    email: str
-    fecha: date
-    tipo_evento: str
-    tipo_chef: str
-    comensales: int
-
-class UsuarioCreate(BaseModel):
-    nombre: str
-    apellidos: str | None = None 
-    email: str
-    password: str
-    telefono: str 
-    acepta_privacidad: bool # --- Validación obligatoria de conformidad RGPD ---
-
-# --- EXTRANET DE CLIENTE: Modificación de Datos Perfil ---
-class PerfilUpdate(BaseModel):
-    nombre: str
-    apellidos: Optional[str] = None
-    telefono: str
-
-class PasswordUpdate(BaseModel):
-    password_actual: str
-    password_nueva: str
-
-# --- NUEVO: GESTIÓN OPERATIVA EN PANEL DE ADMINISTRACIÓN (TFG: Fase 2) ---
-class EstadoPedidoUpdate(BaseModel):
-    """DTO para validar el payload de mutación de estado enviado desde el Dashboard de Next.js"""
-    estado: str
-
-# --- AUDITORÍA DE CREDENCIALES ---
-class RecuperarPasswordRequest(BaseModel):
-    email: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-# --- CHECKOUT REAL: Estructuras de Datos Compuestas ---
-class ItemCarritoCreate(BaseModel):
-    plato_id: int
-    cantidad: int
-    precio_unitario: float
-
-class PedidoCreate(BaseModel):
-    items: List[ItemCarritoCreate]
-    total: float
-    tipo_servicio: str
-    fecha_servicio: datetime
-    direccion_calle: str
-    provincia: str 
-    ciudad: str
-    distrito: str 
-    telefono: str 
-    codigo_postal: str
-    notes_cliente: Optional[str] = None 
-
-# --- CONFIGURACIÓN MIDDLEWARE CORS (Permite comunicación desacoplada con Next.js en desarrollo) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Permite métodos estándar (GET, POST, PUT, DELETE)
+    allow_headers=["*"],  # Permite adjuntar cabeceras como Content-Type o Authorization
 )
 
-# =========================================================================
-# --- Modelos de Base de Datos (ORM - SQLAlchemy acoplados a Neon DB) ---
-# =========================================================================
-
-class PlatoORM(Base):
-    __tablename__ = "platos"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(150))
-    descripcion = Column(String)
-    precio = Column(Numeric(10, 2))
-    categoria = Column(String(100))
-    alergenos = Column(String(255))
-    disponible = Column(Boolean, default=True)
-
-class ListaEsperaORM(Base):
-    __tablename__ = "lista_espera"
-    id = Column(Integer, primary_key=True, index=True)
-    plato_id = Column(Integer)
-    email_usuario = Column(String(255))
-    fecha_solicitud = Column(TIMESTAMP, server_default=func.now())
-
-class ReservaORM(Base):
-    __tablename__ = "reservas_chef"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(150))
-    email = Column(String(255))
-    fecha = Column(Date)
-    tipo_evento = Column(String(100))
-    tipo_chef = Column(String(100))
-    comensales = Column(Integer)
-    fecha_solicitud = Column(TIMESTAMP, server_default=func.now())
-
-class UsuarioORM(Base):
-    __tablename__ = "usuarios"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(100))
-    apellidos = Column(String(150))
-    email = Column(String(255), unique=True, index=True)
-    password_hash = Column(String(255))
-    rol = Column(String(50), default="cliente")
-    activo = Column(Boolean, default=True)
-    telefono = Column(String(20), nullable=True) 
-    acepta_privacidad = Column(Boolean, default=False) 
-    creado_en = Column(TIMESTAMP, server_default=func.now())
-
-# --- RELACIONES DE ENTIDAD E INTEGRIDAD REFERENCIAL (TFG: Relaciones Compuestas) ---
-class PedidoORM(Base):
-    __tablename__ = "pedidos"
-    id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=True) 
-    tipo_servicio = Column(String(50), nullable=False)
-    fecha_servicio = Column(TIMESTAMP, nullable=False)
-    estado = Column(String(50), default="pendiente_pago")
-    total = Column(Numeric(10, 2), nullable=False, default=0.00)
-    direccion_calle = Column(String(255), nullable=False)
-    ciudad = Column(String(100), nullable=False)
-    codigo_postal = Column(String(10), nullable=False)
-    provincia = Column(String(50), nullable=False)
-    distrito = Column(String(100), nullable=False) 
-    telefono = Column(String(20), nullable=False) 
-    notas_cliente = Column(Text)
-    creado_en = Column(TIMESTAMP, server_default=func.now())
-
-class DetallePedidoORM(Base):
-    __tablename__ = "detalles_pedido"
-    id = Column(Integer, primary_key=True, index=True)
-    pedido_id = Column(Integer, ForeignKey("pedidos.id", ondelete="CASCADE"))
-    plato_id = Column(Integer, ForeignKey("platos.id", ondelete="RESTRICT"))
-    cantidad = Column(Integer, nullable=False)
-    precio_unitario = Column(Numeric(10, 2), nullable=False)
 
 # =========================================================================
 # --- MÉTODOS DE SERVICIO AUXILIARES (SEGURIDAD Y CIFRADO) ---
@@ -186,15 +66,12 @@ def crear_token_acceso(data: dict) -> str:
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# --- MIDDLEWARE INYECTOR DE DEPENDENCIA (Verificación de Token JWT) ---
 def obtener_usuario_actual(token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """Si no se suministra un token de cabecera, retorna None permitiendo el paso de Invitados. Si expira o es corrupto lanza 401."""
     if not token:
         return None 
         
     excepcion_credenciales = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="No se pudo validar la sesión o el token ha expirado",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -218,12 +95,12 @@ def obtener_usuario_actual(token: Optional[str] = Depends(oauth2_scheme), db: Se
 def estado_servidor():
     return {"mensaje": "API de CaterChef Fusion funcionando correctamente"}
 
-@app.get("/api/platos")
+@app.get("/api/platos", response_model=List[schemas.PlatoResponse])
 def obtener_platos(db: Session = Depends(get_db)):
     return db.query(PlatoORM).all()
 
 @app.post("/api/lista-espera")
-def crear_solicitud(solicitud: ListaEsperaCreate, db: Session = Depends(get_db)):
+def crear_solicitud(solicitud: schemas.ListaEsperaCreate, db: Session = Depends(get_db)):
     try:
         nueva_solicitud = ListaEsperaORM(plato_id=solicitud.plato_id, email_usuario=solicitud.email_usuario)
         db.add(nueva_solicitud)
@@ -233,7 +110,7 @@ def crear_solicitud(solicitud: ListaEsperaCreate, db: Session = Depends(get_db))
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/reservas")
-def crear_reserva(reserva: ReservaCreate, db: Session = Depends(get_db)):
+def crear_reserva(reserva: schemas.ReservaCreate, db: Session = Depends(get_db)):
     try:
         nueva_reserva = ReservaORM(**reserva.model_dump())
         db.add(nueva_reserva)
@@ -242,8 +119,8 @@ def crear_reserva(reserva: ReservaCreate, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/api/registro", response_model=Token)
-def registrar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+@app.post("/api/registro", response_model=schemas.Token)
+def registrar_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     usuario_existente = db.query(UsuarioORM).filter(UsuarioORM.email == usuario.email).first()
     if usuario_existente:
         raise HTTPException(status_code=400, detail="Este email ya está registrado")
@@ -267,7 +144,7 @@ def registrar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
     access_token = crear_token_acceso(data={"sub": nuevo_usuario.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/api/login", response_model=Token)
+@app.post("/api/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     usuario = db.query(UsuarioORM).filter(UsuarioORM.email == form_data.username).first()
     if not usuario or not verificar_password(form_data.password, usuario.password_hash) or not usuario.activo:
@@ -281,34 +158,27 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @app.get("/api/me")
 def obtener_perfil_actual(db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
-    """Retorna los datos del usuario autenticado para la inyección dinámica en formularios."""
     if not usuario_actual:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token ausente o sesión inválida."
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token ausente o sesión inválida.")
     
     total_pedidos = db.query(PedidoORM).filter(PedidoORM.usuario_id == usuario_actual.id).count()
-    
     return {
         "nombre": usuario_actual.nombre,
         "apellidos": usuario_actual.apellidos,
-        "email": usuario_actual.email,       
+        "email": usuario_actual.email,      
         "telefono": usuario_actual.telefono, 
         "rol": usuario_actual.rol,
         "es_primera_compra": total_pedidos == 0 
     }
 
-# --- EXTRANET DEL CLIENTE: Auto-Gestión e Históricos ---
 @app.get("/api/reservas/me")
 def obtener_mis_reservas(db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
     if not usuario_actual:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere sesión activa.")
-    
     return db.query(ReservaORM).filter(ReservaORM.email == usuario_actual.email).order_by(ReservaORM.fecha_solicitud.desc()).all()
 
 @app.put("/api/me")
-def actualizar_perfil(perfil: PerfilUpdate, db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
+def actualizar_perfil(perfil: schemas.PerfilUpdate, db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
     if not usuario_actual:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere sesión activa.")
     
@@ -319,7 +189,7 @@ def actualizar_perfil(perfil: PerfilUpdate, db: Session = Depends(get_db), usuar
     return {"mensaje": "Perfil actualizado correctamente"}
 
 @app.put("/api/me/password")
-def actualizar_password(datos: PasswordUpdate, db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
+def actualizar_password(datos: schemas.PasswordUpdate, db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
     if not usuario_actual:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere sesión activa.")
     
@@ -331,53 +201,51 @@ def actualizar_password(datos: PasswordUpdate, db: Session = Depends(get_db), us
     return {"mensaje": "Contraseña actualizada de forma segura"}
 
 @app.post("/api/recuperar-password")
-def recuperar_password(solicitud: RecuperarPasswordRequest, db: Session = Depends(get_db)):
+def recuperar_password(solicitud: schemas.RecuperarPasswordRequest, db: Session = Depends(get_db)):
     usuario = db.query(UsuarioORM).filter(UsuarioORM.email == solicitud.email).first()
-    
     if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No se ha encontrado ninguna cuenta vinculada a este correo electrónico."
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado ninguna cuenta vinculada.")
     
     print(f"\n================ [SMTP OUTBOUND SIMULATOR] ================")
     print(f"DESTINATARIO: {usuario.email}")
-    print(f"ASUNTO: Restablecimiento de contraseña - CaterChef Fusión")
-    print(f"TOKEN TEMPORAL GENERADO: temporal_tfg_{func.now()}")
-    print(f"ESTADO: Canal TLS de pruebas completado con éxito")
+    print(f"ASUNTO: Restablecimiento de contraseña")
     print(f"===========================================================\n")
-    
     return {"mensaje": "Instrucciones de recuperación despachadas."}
 
-# --- TRANSACCIONES COMPUESTAS Y ROLES ADMINISTRATIVOS (RBAC) ---
+# --- ENDPOINT PARA DETECTAR CONCURRENCIA LOGÍSTICA (TFG: Control de Franjas Ocupadas) ---
+@app.get("/api/horarios-ocupados")
+def obtener_horarios_ocupados(fecha: date, db: Session = Depends(get_db)):
+    pedidos_fecha = db.query(PedidoORM).filter(func.date(PedidoORM.fecha_servicio) == fecha).all()
+    horas_bloqueadas = [p.fecha_servicio.strftime("%H:%M") for p in pedidos_fecha]
+    return {"horas_ocupadas": horas_bloqueadas}
+
 @app.post("/api/pedidos")
-def crear_pedido(pedido: PedidoCreate, db: Session = Depends(get_db), usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)):
-    """Transacción relacional atómica en dos pasos: Registra cabecera (mapeando si es usuario o invitado) e inserta detalles."""
+def crear_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_db), usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)):
     try:
         id_usuario = usuario_actual.id if usuario_actual else None
-
+        
         nuevo_pedido = PedidoORM(
-            usuario_id=id_usuario,
-            tipo_servicio=pedido.tipo_servicio,
+            usuario_id=id_usuario, 
+            tipo_servicio=pedido.tipo_servicio, 
             fecha_servicio=pedido.fecha_servicio,
-            total=pedido.total,
-            direccion_calle=pedido.direccion_calle,
+            total=pedido.total, 
+            direccion_calle=pedido.direccion_calle, 
             ciudad=pedido.ciudad,
-            codigo_postal=pedido.codigo_postal,
-            provincia=pedido.provincia,
-            distrito=pedido.distrito,   
-            telefono=pedido.telefono,   
-            notas_cliente=pedido.notes_cliente
+            codigo_postal=pedido.codigo_postal, 
+            provincia=pedido.provincia, 
+            distrito=pedido.distrito,
+            telefono=pedido.telefono, 
+            notas_cliente=pedido.notes_cliente,
+            nombre_invitado=getattr(pedido, "nombre_invitado", None),
+            apellidos_invitado=getattr(pedido, "apellidos_invitado", None),
+            email_invitado=getattr(pedido, "email_invitado", None)
         )
         db.add(nuevo_pedido)
         db.flush() 
 
         for item in pedido.items:
             detalle = DetallePedidoORM(
-                pedido_id=nuevo_pedido.id,
-                plato_id=item.plato_id,
-                cantidad=item.cantidad,
-                precio_unitario=item.precio_unitario
+                pedido_id=nuevo_pedido.id, plato_id=item.plato_id, cantidad=item.cantidad, precio_unitario=item.precio_unitario
             )
             db.add(detalle)
         
@@ -390,54 +258,59 @@ def crear_pedido(pedido: PedidoCreate, db: Session = Depends(get_db), usuario_ac
 @app.get("/api/pedidos/me")
 def obtener_mis_pedidos(db: Session = Depends(get_db), usuario_actual: UsuarioORM = Depends(obtener_usuario_actual)):
     if not usuario_actual:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Se requiere sesión activa para consultar el historial."
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Se requiere sesión activa.")
     return db.query(PedidoORM).filter(PedidoORM.usuario_id == usuario_actual.id).order_by(PedidoORM.creado_en.desc()).all()
 
 @app.get("/api/admin/pedidos")
 def obtener_todos_los_pedidos(db: Session = Depends(get_db), usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)):
     if not usuario_actual or usuario_actual.rol != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Acceso restringido. Se requieren privilegios de administración."
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso restringido.")
     return db.query(PedidoORM).order_by(PedidoORM.creado_en.desc()).all()
 
-# --- NUEVO ENDPOINT: GESTIÓN OPERATIVA DE CICLO DE VIDA (TFG: Fase 2 - Mutación RBAC) ---
 @app.put("/api/admin/pedidos/{pedido_id}/estado")
-def actualizar_estado_pedido(
-    pedido_id: int, 
-    datos: EstadoPedidoUpdate, 
-    db: Session = Depends(get_db), 
-    usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)
-):
-    """
-    Controlador dirigido para la actualización del estado de un ticket de servicio.
-    Aplica seguridad RBAC estricta validando que el rol asociado al JWT sea de administrador.
-    """
-    # 1. Seguridad perimetral: Middleware de control de roles
+def actualizar_estado_pedido(pedido_id: int, datos: schemas.EstadoPedidoUpdate, db: Session = Depends(get_db), usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)):
     if not usuario_actual or usuario_actual.rol != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Acceso denegado. Se requieren privilegios de administración."
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado.")
     
-    # 2. Búsqueda por clave primaria indexada en Neon DB
     pedido = db.query(PedidoORM).filter(PedidoORM.id == pedido_id).first()
     if not pedido:
-        raise HTTPException(
-            status_code=404, 
-            detail="Pedido no encontrado en los registros históricos."
-        )
+        raise HTTPException(status_code=404, detail="Pedido no encontrado.")
     
-    # 3. Transacción atómica: Actualización del estado operativo
     pedido.estado = datos.estado
     db.commit()
-    
-    return {
-        "mensaje": "Estado del pedido actualizado con éxito en Neon DB", 
-        "pedido_id": pedido_id,
-        "nuevo_estado": pedido.estado
-    }
+    return {"mensaje": "Estado del pedido actualizado con éxito", "pedido_id": pedido_id, "nuevo_estado": pedido.estado}
+
+@app.post("/api/contacto", status_code=status.HTTP_201_CREATED)
+def enviar_mensaje_contacto(mensaje: schemas.ContactoCreate, db: Session = Depends(get_db)):
+    try:
+        nuevo_mensaje = MensajeContactoORM(
+            nombre=mensaje.nombre, email=mensaje.email, telefono=mensaje.telefono,
+            numero_pedido=mensaje.numero_pedido, tipo_evento=mensaje.tipo_evento, mensaje=mensaje.mensaje,
+            acepta_privacidad=mensaje.acepta_privacidad, acepta_comerciales=mensaje.acepta_comerciales
+        )
+        db.add(nuevo_mensaje)
+        db.commit()
+        db.refresh(nuevo_mensaje)
+        return {"mensaje": "Mensaje almacenado correctamente", "ticket_id": nuevo_mensaje.id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Fallo crítico al indexar el lead: {str(e)}")
+
+@app.get("/api/admin/contacto")
+def obtener_todos_los_mensajes(db: Session = Depends(get_db), usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)):
+    if not usuario_actual or usuario_actual.rol != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso restringido.")
+    return db.query(MensajeContactoORM).order_by(MensajeContactoORM.creado_en.desc()).all()
+
+@app.put("/api/admin/contacto/{mensaje_id}/leer")
+def marcar_mensaje_como_leido(mensaje_id: int, db: Session = Depends(get_db), usuario_actual: Optional[UsuarioORM] = Depends(obtener_usuario_actual)):
+    if not usuario_actual or usuario_actual.rol != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso restringido.")
+        
+    mensaje = db.query(MensajeContactoORM).filter(MensajeContactoORM.id == mensaje_id).first()
+    if not mensaje:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El ticket especificado no existe.")
+        
+    mensaje.leido = True
+    db.commit()
+    return {"mensaje": "El ticket de contacto ha sido marcado como atendido", "ticket_id": mensaje_id}
