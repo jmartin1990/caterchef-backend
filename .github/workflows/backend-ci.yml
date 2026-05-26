@@ -1,0 +1,45 @@
+# caterchef-backend/.github/workflows/backend-ci.yml
+name: CaterChef Backend CI (Integración Continua)
+
+# El pipeline se disparará automáticamente al hacer push o pull request a las ramas dev y main
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main", "dev"]
+
+jobs:
+  test-backend:
+    # Levanta una máquina virtual limpia con la última versión de Ubuntu Server
+    runs-on: ubuntu-latest
+
+    steps:
+      # STEP 1: Clona el código de tu repositorio de GitHub en la máquina virtual
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      # STEP 2: Inicializa el entorno oficial de Python
+      - name: Configurar entorno de Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # STEP 3: Cachea las dependencias de pip para que los siguientes deploys sean ultra rápidos
+      - name: Cachear dependencias de Pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # STEP 4: Instala todos los componentes de requirements.txt (incluyendo pytest y httpx)
+      - name: Instalar dependencias del proyecto
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # STEP 5: Ejecución automatizada del banco de pruebas unitarias en la nube
+      - name: Ejecutar Suite de Pruebas Unitarias (Pytest)
+        run: |
+          python -m pytest -v
