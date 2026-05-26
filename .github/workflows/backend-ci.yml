@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [ "main", "dev" ]
 
-defaults:
-  run:
-    working-directory: caterchef-backend
-
 jobs:
   test:
     runs-on: ubuntu-latest
