@@ -2,7 +2,7 @@
 
 Este repositorio contiene el núcleo lógico de la aplicación **CaterChef**, encargado de la gestión de usuarios, reservas de chefs a domicilio, pedidos de catering y pasarela.
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 - **Framework:** FastAPI (Python 3.11+)
 - **Base de Datos:** PostgreSQL (Neon DB en producción) / SQLite (Entorno de pruebas)
@@ -10,7 +10,7 @@ Este repositorio contiene el núcleo lógico de la aplicación **CaterChef**, en
 - **Autenticación:** Seguridad basada en OAuth2 y JSON Web Tokens (JWT)
 - **Testing:** Pytest con base de datos en memoria (`sqlite:///:memory:`)
 
-## 🐳 Arquitectura Docker (Producción)
+## Arquitectura Docker (Producción)
 
 El backend utiliza un archivo `Dockerfile` optimizado con una **build multi-etapa (multi-stage build)** basada en Python Alpine para reducir drásticamente el peso de la imagen final:
 
@@ -48,20 +48,20 @@ Ejecuta de manera obligatoria la suite de pytest. Si un test falla, el pipeline 
 
 ---
 
-### 2. 📁 En la raíz de `caterchef-frontend/README.md`
+### 2. En la raíz de `caterchef-frontend/README.md`
 
 ```markdown
 # CaterChef Frontend - Interfaz Web (Next.js)
 
 Este repositorio contiene la interfaz de usuario interactiva de **CaterChef**, diseñada para ofrecer una experiencia fluida (UX) en la contratación de catering y chefs.
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 - **Framework:** Next.js 16 (App Router & Turbopack)
 - **Lenguaje:** TypeScript (Tipado estricto adaptado para configuraciones asíncronas)
 - **Estilos:** Tailwind CSS (Diseño responsive y adaptativo)
 - **Testing:** Jest + React Testing Library
 
-## 🐳 Arquitectura Docker
+## Arquitectura Docker
 El frontend está dockerizado de forma independiente y preparado para servir la aplicación compilada.
 
 ### Comandos de Terminal para Gestión Manual de Docker:
@@ -92,20 +92,20 @@ Ejecuta npm run build verificando que no existan errores de compilación ni conf
 
 ---
 
-### 3. 📁 En la raíz del proyecto principal `Proyecto_TFG/README.md`
+### 3. En la raíz del proyecto principal `Proyecto_TFG/README.md`
 
 ```markdown
-# 🏆 Proyecto Fin de Grado: CaterChef Fusion
+# Proyecto Fin de Grado: CaterChef Fusion
 
 **Autor:** Juan Martín Campos
 **Especialidad:** Técnico Superior en Desarrollo de Aplicaciones Web (DAW)
 
 Este repositorio actúa como el **Orquestador Central** del proyecto **CaterChef**, un gestor integral full-stack para empresas de catering y chefs a domicilio que fusiona la gastronomía peruana y española.
 
-## 🏗️ Arquitectura de Red y Orquestación Global
+## Arquitectura de Red y Orquestación Global
 El sistema completo se gestiona de manera unificada mediante **Docker Compose**, aislando los servicios en una red privada de tipo puente (`bridge`) llamada `caterchef_network`. Esto permite que el Frontend y el Backend se comuniquen de forma segura sin exponer puertos innecesarios al exterior.
 
-## 🚀 Manual de Arranque Rápido (Terminal Unificada)
+## Manual de Arranque Rápido (Terminal Unificada)
 
 Para arrancar todo el ecosistema (Base de datos, API y Servidor Web) en un solo comando y sin configurar entornos locales, sigue estos pasos:
 

@@ -1,4 +1,3 @@
-# main.py
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
@@ -7,34 +6,34 @@ from typing import List, Optional
 from datetime import date, datetime, timedelta, timezone 
 from database import get_db
 
-# --- NUEVO: IMPORTACIÓN ATÓMICA DE MODELOS DESACOPLADOS (TFG: Patrón de Diseño Arquitectónico) ---
+#IMPORTACIÓN DE MODELOS ORM
 from models import (
     PlatoORM, ListaEsperaORM, ReservaORM, UsuarioORM, 
     PedidoORM, DetallePedidoORM, MensajeContactoORM
 )
 
-# --- IMPORTACIÓN MAESTRA DE ESQUEMAS MODULARES (TFG: Separación de Responsabilidades) ---
+#IMPORTACIÓN MAESTRA DE ESQUEMAS MODULARES
 import schemas
 
-# --- LIBRERÍAS DE AUTENTICACIÓN Y SEGURIDAD ---
+# LIBRERÍAS DE AUTENTICACIÓN Y SEGURIDAD
 from passlib.context import CryptContext
 import jwt
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 
 app = FastAPI(title="CaterChef Fusion API")
 
-# --- CONFIGURACIÓN PARA JWT Y HASHEO ---
+# CONFIGURACIÓN PARA JWT Y HASHEO DE CONTRASEÑAS
 SECRET_KEY = "clave_super_secreta_para_el_tfg_de_daw"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# --- MIDDLEWARE OAUTH2 ---
+# MIDDLEWARE OAUTH2 PARA PROTECCIÓN DE RUTAS CON TOKEN JWT
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
 
-# --- CONFIGURACIÓN DE CORS PARA EL TFG (Seguridad de Orígenes Cruzados) ---
+# CONFIGURACIÓN DE CORS PARA PERMITIR PETICIONES DESDE EL FRONTEND (Next.js) DURANTE EL DESARROLLO LOCAL
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -49,10 +48,7 @@ app.add_middleware(
     allow_headers=["*"],  # Permite adjuntar cabeceras como Content-Type o Authorization
 )
 
-
-# =========================================================================
-# --- MÉTODOS DE SERVICIO AUXILIARES (SEGURIDAD Y CIFRADO) ---
-# =========================================================================
+#MÉTODOS DE SERVICIO AUXILIARES (SEGURIDAD Y CIFRADO)
 
 def obtener_password_hash(password: str) -> str:
     return pwd_context.hash(password)
@@ -87,9 +83,7 @@ def obtener_usuario_actual(token: Optional[str] = Depends(oauth2_scheme), db: Se
         raise excepcion_credenciales
     return usuario
 
-# =========================================================================
-# --- CONTROLADORES / RUTAS DE LA API (Endpoints RESTful) ---
-# =========================================================================
+# CONTROLADORES / RUTAS DE LA API (Endpoints RESTful)
 
 @app.get("/")
 def estado_servidor():
@@ -212,7 +206,7 @@ def recuperar_password(solicitud: schemas.RecuperarPasswordRequest, db: Session 
     print(f"===========================================================\n")
     return {"mensaje": "Instrucciones de recuperación despachadas."}
 
-# --- ENDPOINT PARA DETECTAR CONCURRENCIA LOGÍSTICA (TFG: Control de Franjas Ocupadas) ---
+# ENDPOINT PARA DETECTAR CONCURRENCIA LOGÍSTICA Y EVITAR DOBLE RESERVA DE HORARIOS EN EL SERVICIO DE CATERING
 @app.get("/api/horarios-ocupados")
 def obtener_horarios_ocupados(fecha: date, db: Session = Depends(get_db)):
     pedidos_fecha = db.query(PedidoORM).filter(func.date(PedidoORM.fecha_servicio) == fecha).all()

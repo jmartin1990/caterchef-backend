@@ -1,7 +1,4 @@
--- =========================================================================
--- PROYECTO TFG DAW: CaterChef Fusión
--- SCRIPT DE ESTRUCTURA DE BASE DE DATOS (POSTGRESQL) - ACTUALIZADO
--- =========================================================================
+-- SCRIPT DE ESTRUCTURA DE BASE DE DATOS (POSTGRESQL)
 
 -- 1. LIMPIEZA DE TABLAS
 DROP TABLE IF EXISTS "detalles_pedido" CASCADE;
@@ -111,7 +108,7 @@ ALTER TABLE "lista_espera" ADD CONSTRAINT "lista_espera_plato_id_fkey" FOREIGN K
 ALTER TABLE "pedidos" ADD CONSTRAINT "pedidos_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "usuarios"("id") ON DELETE CASCADE;
 
 -- 5. INSERCIÓN DE DATOS SEMILLA
--- He asignado el nombre de archivo correspondiente a cada plato según nuestra lista
+-- He asignado el nombre de archivo correspondiente a cada plato según la lista
 INSERT INTO "platos" ("id", "nombre", "descripcion", "precio", "categoria", "imagen_url", "alergenos", "disponible") VALUES 
 (1, 'Ceviche de Corvina con reducción de Sidra', 'Corvina marinada en lima, ají limo y sidra.', 18.50, 'Entrante', 'ceviche-corvina-sidra.png', 'Pescado', true),
 (2, 'Croquetas cremosas de Ají de Gallina', 'Tradicional masa con guiso peruano, pecanas y queso.', 12.00, 'Entrante', 'croquetas-aji-gallina.png', 'Gluten, Lácteos', true),
