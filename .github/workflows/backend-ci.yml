@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      DATABASE_URL: sqlite:///:memory:
-      SECRET_KEY: clave_test_tfg_2026
-      ALGORITHM: HS256
+      DATABASE_URL: "sqlite:///:memory:"
+      SECRET_KEY: "clave_test_tfg_2026"
+      ALGORITHM: "HS256"
 
     steps:
       - uses: actions/checkout@v4
