@@ -7,22 +7,10 @@
 import pytest
 from fastapi.testclient import TestClient
 from main import app
-
-# --- CONFIGURACIÓN PARA GITHUB ACTIONS Y SQLITE EN MEMORIA ---
 from database import Base, engine 
 
-# IMPORTACIÓN CRÍTICA: Forzamos la carga del modelo para que SQLAlchemy registre la tabla 'usuarios'
-try:
-    # Si tus modelos están en un archivo models.py, esto registrará todo automáticamente
-    from models import UsuarioORM
-except ImportError:
-    # Si tu archivo ORM se llama diferente o está dentro de otra carpeta, 
-    # desactiva o ajusta esta importación según tu estructura real.
-    pass
-
-# Forzamos la creación física de las tablas mapeadas en la base de datos temporal
+# Forzamos la creación física de las tablas en el archivo compartido de pruebas
 Base.metadata.create_all(bind=engine)
-# ====================================================================
 
 # Inicializamos el cliente de pruebas sobre la instancia nativa de la API
 client = TestClient(app)
