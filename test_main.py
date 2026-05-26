@@ -8,9 +8,18 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app
 
-# --- CONFIGURACIÓN MÁGICA PARA GITHUB ACTIONS Y SQLITE EN MEMORIA ---
+# --- CONFIGURACIÓN PARA GITHUB ACTIONS Y SQLITE EN MEMORIA ---
 from database import Base, engine 
-# Esto le dice a SQLAlchemy: "Crea todas las tablas (como la de usuarios) en la RAM ahora mismo"
+
+# IMPORTANTE: Importamos los modelos para que SQLAlchemy registre las tablas en memoria.
+# (Si tus modelos están en otro archivo que no sea models.py, cambia "models" por el nombre de tu archivo)
+try:
+    import models
+except ImportError:
+    # Si tus modelos ORM están definidos en otro sitio, puedes importarlos directamente aquí
+    pass
+
+# Ahora sí, creamos todas las tablas registradas en el SQLite en memoria
 Base.metadata.create_all(bind=engine)
 # ====================================================================
 
