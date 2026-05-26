@@ -1,9 +1,6 @@
-# =========================================================================
-# PROYECTO TFG DAW: CaterChef Fusión
 # ARQUITECTURA DE DEPENDENCIAS BACKEND (FastAPI & Neon DB)
-# =========================================================================
 
-# --- NÚCLEO DE LA API Y MIDDLEWARES ---
+# NÚCLEO DE LA API Y MIDDLEWARES
 fastapi==0.135.1
 fastapi-cli==0.0.24
 fastapi-cloud-cli==0.15.0
@@ -18,19 +15,19 @@ watchfiles==1.1.1
 websockets==16.0
 python-multipart==0.0.22
 
-# --- PERSISTENCIA Y BASE DE DATOS (Neon DB / PostgreSQL) ---
+# PERSISTENCIA Y BASE DE DATOS (Neon DB / PostgreSQL)
 SQLAlchemy==2.0.49
 psycopg2-binary==2.9.12
 greenlet==3.5.0
 
-# --- SEGURIDAD, ENCRIPTACIÓN Y TOKENS JWT ---
+# SEGURIDAD, ENCRIPTACIÓN Y TOKENS JWT
 bcrypt==3.2.2
 passlib==1.7.4
 PyJWT==2.12.1
 cffi==2.0.0
 pycparser==3.0
 
-# --- VALIDACIÓN DE DATOS Y CONFIGURACIÓN ---
+# VALIDACIÓN DE DATOS Y CONFIGURACIÓN (Pydantic) - Para definir esquemas de datos robustos y validación automática de entradas/salidas en la API
 pydantic==2.12.5
 pydantic_core==2.41.5
 pydantic-extra-types==2.11.1
@@ -42,7 +39,7 @@ annotated-types==0.7.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 
-# --- TRATAMIENTO DE DATOS, CORE Y UTILIDADES ---
+# TRATAMIENTO DE DATOS, CORE Y UTILIDADES
 numpy==2.4.4
 pandas==3.0.2
 pillow==12.1.1
@@ -53,7 +50,7 @@ certifi==2026.2.25
 urllib3==2.6.3
 PyYAML==6.0.3
 
-# --- INTERFAZ DE CONSOLA Y FORMATEO (Rich & Typer) ---
+# INTERFAZ DE CONSOLA Y FORMATEO (Rich & Typer) - Para mejorar la experiencia de desarrollo y depuración con una CLI interactiva y salida formateada
 click==8.3.1
 colorama==0.4.6
 rich==14.3.3
@@ -66,14 +63,14 @@ MarkupSafe==3.0.3
 mdurl==0.1.2
 rignore==0.7.6
 
-# --- PLANTILLAS Y MONITOREO ---
+# PLANTILLAS Y MONITOREO DE ERRORES
 Jinja2==3.1.6
 sentry-sdk==2.55.0
 dnspython==2.8.0
 
-# =========================================================================
-# --- NUEVO: DEPENDENCIAS DE TESTING Y CALIDAD (Sprint 6) ---
+
+# DEPENDENCIAS DE TESTING Y CALIDAD
 # Paquetes mandatorios para la ejecución de pruebas unitarias automatizadas
-# =========================================================================
+
 pytest==8.1.1
 httpx==0.28.1

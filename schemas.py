@@ -1,13 +1,11 @@
-# schemas.py
+
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date, datetime
 
-# =========================================================================
-# --- Esquemas de validación (Pydantic v2 / DTOs - Data Transfer Objects) ---
-# =========================================================================
+# Esquemas de validación (Pydantic v2 / DTOs - Data Transfer Objects)
 
-# --- ESQUEMA DE SERIALIZACIÓN PARA EL CATÁLOGO GOURMET (TFG: Fase 2) ---
+# ESQUEMA DE SERIALIZACIÓN PARA EL CATÁLOGO GOURMET
 class PlatoResponse(BaseModel):
     """Garantiza el contrato de API enviando de forma segura las URLs multimedia a Next.js"""
     id: int
@@ -17,7 +15,7 @@ class PlatoResponse(BaseModel):
     categoria: str
     alergenos: str
     disponible: bool
-    imagen_url: Optional[str] = None  # 👈 Incorporación de metadatos multimedia
+    imagen_url: Optional[str] = None  #Incorporación de metadatos multimedia
 
     class Config:
         # Permite a Pydantic leer los atributos directamente desde el modelo ORM de SQLAlchemy
@@ -41,9 +39,9 @@ class UsuarioCreate(BaseModel):
     email: str
     password: str
     telefono: str 
-    acepta_privacidad: bool # --- Validación obligatoria de conformidad RGPD ---
+    acepta_privacidad: bool # Validación obligatoria de conformidad RGPD
 
-# --- EXTRANET DE CLIENTE: Modificación de Datos Perfil ---
+# EXTRANET DE CLIENTE: Modificación de Datos Perfil
 class PerfilUpdate(BaseModel):
     nombre: str
     apellidos: Optional[str] = None
@@ -53,12 +51,12 @@ class PasswordUpdate(BaseModel):
     password_actual: str
     password_nueva: str
 
-# --- GESTIÓN OPERATIVA EN PANEL DE ADMINISTRACIÓN ---
+# GESTIÓN OPERATIVA EN PANEL DE ADMINISTRACIÓN
 class EstadoPedidoUpdate(BaseModel):
     """DTO para validar el payload de mutación de estado enviado desde el Dashboard de Next.js"""
     estado: str
 
-# --- AUDITORÍA DE CREDENCIALES ---
+# AUDITORÍA DE CREDENCIALES
 class RecuperarPasswordRequest(BaseModel):
     email: str
 
@@ -66,7 +64,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-# --- CHECKOUT REAL: Estructuras de Datos Compuestas ---
+# CHECKOUT REAL: Estructuras de Datos Compuestas
 class ItemCarritoCreate(BaseModel):
     plato_id: int
     cantidad: int
@@ -85,13 +83,13 @@ class PedidoCreate(BaseModel):
     codigo_postal: str
     notes_cliente: Optional[str] = None 
     
-    # --- NUEVO: PROPIEDADES DE IDENTIFICACIÓN LOGÍSTICA PARA INVITADOS (TFG: Desacoplamiento Híbrido) ---
+    # PROPIEDADES DE IDENTIFICACIÓN LOGÍSTICA PARA INVITADOS
     # Al definirse como opcionales con valor None, no rompen las peticiones de los usuarios logueados
     nombre_invitado: Optional[str] = None
     apellidos_invitado: Optional[str] = None
     email_invitado: Optional[str] = None
 
-# --- GESTIÓN DE ATENCIÓN AL CLIENTE ---
+# GESTIÓN DE ATENCIÓN AL CLIENTE
 class ContactoCreate(BaseModel):
     """DTO para validar y tipar de forma estricta los leads entrantes del formulario de contacto"""
     nombre: str
@@ -100,5 +98,5 @@ class ContactoCreate(BaseModel):
     numero_pedido: Optional[str] = None 
     tipo_evento: Optional[str] = None
     mensaje: str
-    acepta_privacidad: bool   # --- Fuerza la validación explícita del consentimiento RGPD ---
-    accepta_comerciales: bool  # --- Almacena la conformidad o rechazo de campañas de marketing ---
+    acepta_privacidad: bool   # Fuerza la validación explícita del consentimiento RGPD
+    accepta_comerciales: bool  # Almacena la conformidad o rechazo de campañas de marketing

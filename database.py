@@ -5,13 +5,13 @@ from sqlalchemy.orm import sessionmaker
 # Importación moderna y robusta para SQLAlchemy 2.0+
 from sqlalchemy.orm import DeclarativeBase
 
-# Esto le dice a Python: "Ve a buscar el archivo .env y carga sus variables de entorno"
+# Python va a buscar el archivo .env y carga sus variables de entorno en el entorno de ejecución de forma segura, evitando hardcodear credenciales sensibles en el código fuente.
 load_dotenv()
 
 # Recupera de forma segura la cadena de conexión SSL a la base de datos de Neon DB
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# --- ACTUALIZADO: CONFIGURACIÓN DE RESILIENCIA DEL POOL DE CONEXIONES (TFG: Optimización Serverless) ---
+# CONFIGURACIÓN DE RESILIENCIA DEL POOL DE CONEXIONES
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,   # Envía un micro-test interno ("ping") antes de lanzar consultas.

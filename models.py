@@ -1,8 +1,4 @@
-# src/models.py
-# =========================================================================
-# PROYECTO TFG DAW: CaterChef Fusión
 # MODELOS DE BASE DE DATOS (ORM - SQLAlchemy)
-# =========================================================================
 
 from sqlalchemy import Column, Integer, String, Numeric, Boolean, TIMESTAMP, func, Date, ForeignKey, Text
 from database import Base

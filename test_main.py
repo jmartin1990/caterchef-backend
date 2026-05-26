@@ -1,8 +1,4 @@
-# test_main.py
-# =========================================================================
-# PROYECTO TFG DAW: CaterChef Fusión
-# BANCO DE PRUEBAS UNITARIAS AUTOMATIZADAS STANDARD (Sprint 6)
-# =========================================================================
+# BANCO DE PRUEBAS UNITARIAS AUTOMATIZADAS STANDARD
 
 import pytest
 from fastapi.testclient import TestClient
