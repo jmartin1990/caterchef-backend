@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      DATABASE_URL: "sqlite:///:memory:"
+      DATABASE_URL: "sqlite:///./test.db"
       SECRET_KEY: "clave_test_tfg_2026"
       ALGORITHM: "HS256"
 
