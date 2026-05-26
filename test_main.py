@@ -11,15 +11,16 @@ from main import app
 # --- CONFIGURACIÓN PARA GITHUB ACTIONS Y SQLITE EN MEMORIA ---
 from database import Base, engine 
 
-# IMPORTANTE: Importamos los modelos para que SQLAlchemy registre las tablas en memoria.
-# (Si tus modelos están en otro archivo que no sea models.py, cambia "models" por el nombre de tu archivo)
+# IMPORTACIÓN CRÍTICA: Forzamos la carga del modelo para que SQLAlchemy registre la tabla 'usuarios'
 try:
-    import models
+    # Si tus modelos están en un archivo models.py, esto registrará todo automáticamente
+    from models import UsuarioORM
 except ImportError:
-    # Si tus modelos ORM están definidos en otro sitio, puedes importarlos directamente aquí
+    # Si tu archivo ORM se llama diferente o está dentro de otra carpeta, 
+    # desactiva o ajusta esta importación según tu estructura real.
     pass
 
-# Ahora sí, creamos todas las tablas registradas en el SQLite en memoria
+# Forzamos la creación física de las tablas mapeadas en la base de datos temporal
 Base.metadata.create_all(bind=engine)
 # ====================================================================
 
