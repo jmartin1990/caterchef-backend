@@ -1,12 +1,18 @@
 # test_main.py
 # =========================================================================
 # PROYECTO TFG DAW: CaterChef Fusión
-# BANCO DE PRUEBAS UNITARIAS AUTOMATIZADAS (Sprint 6)
+# BANCO DE PRUEBAS UNITARIAS AUTOMATIZADAS - ENTORNO AISLADO (CI/CD)
 # =========================================================================
 
 import pytest
 from fastapi.testclient import TestClient
-from main import app
+import unittest.mock as mock
+
+# --- ESTRATEGIA DE DECOUPLED TESTING (TFG: Aislamiento de Entorno de Calidad) ---
+# Forzamos un mock de la sesión de la base de datos antes de importar la app
+# Esto evita que la máquina virtual de GitHub Actions intente conectar a Neon DB sin credenciales
+with mock.patch("database.SessionLocal"), mock.patch("database.engine"):
+    from main import app
 
 # Inicializamos el cliente de pruebas sobre la instancia nativa de la API
 client = TestClient(app)
@@ -25,16 +31,21 @@ def test_login_credenciales_invalidas():
     2. Prueba de Seguridad Crítica (Fallo de Autenticación)
     Verifica que el middleware OAuth2 bloquea el acceso si el usuario o contraseña no existen.
     """
-    # Simulamos el envío del formulario estructurado x-www-form-urlencoded
     payload_falso = {
         "username": "usuario_fantasma_tfg@caterchef.com",
         "password": "PasswordIncorrecto123"
     }
-    respuesta = client.post("/api/login", data=payload_falso)
     
-    # Debe denegar el acceso con un error HTTP 401 Unauthorized
-    assert respuesta.status_code == 401
-    assert "incorrectos" in respuesta.json()["detail"]
+    # Mockeamos el comportamiento interno del controlador de autenticación para que simule una denegación segura
+    with mock.patch("main.db") as mock_db:
+        # Simulamos que la consulta a la base de datos devuelve None (usuario no encontrado)
+        mock_db.query.return_value.filter.return_value.first.return_value = None
+        
+        respuesta = client.post("/api/login", data=payload_falso)
+        
+        # Debe denegar el acceso con un error HTTP 401 Unauthorized
+        assert respuesta.status_code == 401
+        assert "incorrectos" in respuesta.json()["detail"]
 
 def test_obtener_perfil_sin_token():
     """
